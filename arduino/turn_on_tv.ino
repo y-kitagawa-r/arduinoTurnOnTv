@@ -2,17 +2,15 @@
 
 #define SERIAL_SPEED 115200
 
-#define WLAN_SSID "e-Broad630cg6vi"
-#define WLAN_PASS "201717ba4e"
+#define WLAN_SSID "**********"//SSID
+#define WLAN_PASS "**********"//password
 
-#define HOST_NAME "13.114.74.103"
+#define HOST_NAME "**********"//サーバーのIPアドレス
 #define STATUS_PHP_PATH "/statusGet.php"
-#define MOISTURE_PHP_PATH "/moistureSet.php"
 #define PORT_NUMBR 80
 
 ESP8266 wifi;
 
-const int ledPin  = 13;
 int ir_out = 2;
  
 // ディスプレイ電源
@@ -22,11 +20,12 @@ unsigned int data[] = {254,44,133,46,72,46,130,50,68,49,129,51,67,51,67,52,125,5
 int last = 0;
 unsigned long us = micros();
 
+// 差分比較用変数
 String resultString = "";
 String pastResultString = "";
 
 void setup() {
-  pinMode (ledPin ,OUTPUT);
+  //pinMode (ledPin ,OUTPUT);
   pinMode(ir_out, OUTPUT);
 
   Serial.begin(SERIAL_SPEED);
@@ -76,18 +75,19 @@ void loop() {
   
   //TCP接続を確立
   if(wifi.createTCP(HOST_NAME,PORT_NUMBR)){
-    //sendMoisture();
     getStatus();
   }else{
     Serial.print("TCP failure");
   }
-  Serial.println("");
-  Serial.println("");
-  Serial.println("");
   pastResultString = resultString;
+  Serial.println("");
+  Serial.println("");
+  Serial.println("");
   delay(1000);
+
 }
 
+// サーバーの情報を取得
 void getStatus(){
     Serial.println("********getStatus-start**********");
     Serial.print("Requesting URL: ");   
@@ -113,20 +113,14 @@ void getStatus(){
     if(len > 0){
       //サーバから取得した文字列を解析
       resultString = parse(len,buffer);
-      if(resultString == "LED_ON"){
-        digitalWrite(ledPin,HIGH);
-      }else if(resultString == "LED_OFF"){
-        digitalWrite(ledPin,LOW);  
-      }else if(resultString == "TV_ON"){
-        if(resultString != pastResultString){
-          sendSignal();
-        }
-      }else if(resultString == "TV_OFF"){
-        if(resultString != pastResultString){
-          sendSignal();
-        }
+      // 前回の取得結果と差分がある場合のみ、赤外線送信を実施
+      if(resultString != pastResultString){
+        sendSignal();
+      }else if(resultString == pastResultString){
+        Serial.print("差分なし；");            
+        Serial.println(resultString);      
       }else{
-        Serial.print("予期せぬ文字列；");            
+        Serial.print("予期せぬ文字列；");
         Serial.println(resultString);      
       }
     }
@@ -181,34 +175,4 @@ void sendSignal() {
     } while (long(us + len - micros()) > 0); // 送信時間に達するまでループ
   }
 }
-
-//湿度センサーの値を送信する
-void sendMoisture() {
-  Serial.println("********sendMoisture-start**********");
-  int moistureValue=analogRead(0); 
-
-  //サーバへ送信するデータ
-  char sendData[] = "";
-  sprintf(sendData,"GET %s?value=%d HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n",MOISTURE_PHP_PATH, moistureValue, HOST_NAME);
-  Serial.println("Send Data: ");
-  Serial.println(sendData);
-  //サーバへデータを送信
-  wifi.send((const uint8_t*)sendData,strlen(sendData));
-  
-  //サーバから取得したデータ
-  uint8_t buffer[512] = {0};
-  
-  //取得した文字列の長さ
-  uint8_t len = wifi.recv(buffer,sizeof(buffer),10000);
-  Serial.print("moistureValue:");
-  Serial.println(moistureValue);
-  Serial.print("buffer:");
-  Serial.println(len);
-  Serial.println("********sendMoisture-end**********");
-  Serial.println("");
-  Serial.println("");
-  Serial.println("");
-  
-}
-
 
